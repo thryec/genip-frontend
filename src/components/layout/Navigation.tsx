@@ -1,27 +1,22 @@
-import React from "react";
 import Link from "next/link";
-import { GitBranch, Loader2 } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { WalletConnect } from "@/components/wallet/WalletConnect";
 
 interface NavigationProps {
-  currentPage?: "home" | "register" | "verify" | "dashboard";
   className?: string;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({
-  currentPage = "home",
-  className = "",
-}) => {
+export const Navigation: React.FC<NavigationProps> = () => {
   const navLinks = [
-    { href: "/", label: "HOME", key: "home" },
-    { href: "/register", label: "REGISTER IP", key: "register" },
-    { href: "/verify", label: "VERIFY IP", key: "verify" },
-    { href: "/dashboard", label: "DASHBOARD", key: "dashboard" },
+    { href: "/", label: "HOME" },
+    { href: "/register", label: "REGISTER IP" },
+    { href: "/verify", label: "VERIFY IP" },
+    { href: "/dashboard", label: "DASHBOARD" },
   ];
 
   return (
     <nav
-      className={`flex items-center justify-between p-6 border-b border-gray-800/50 ${className}`}
+      className={`flex items-center justify-between p-6 border-b border-gray-800/50`}
     >
       {/* Logo */}
       <Link
@@ -38,13 +33,9 @@ export const Navigation: React.FC<NavigationProps> = ({
       <div className="hidden md:flex items-center space-x-8 text-sm">
         {navLinks.map((link) => (
           <Link
-            key={link.key}
+            key={link.href}
             href={link.href}
-            className={`hover:text-gray-300 transition-colors ${
-              currentPage === link.key
-                ? "text-white border-b border-gray-500 pb-1"
-                : "text-gray-400"
-            }`}
+            className="text-gray-400 hover:text-gray-300 transition-colors"
           >
             {link.label}
           </Link>

@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Plus,
   Atom,
   Copy,
   ExternalLink,
-  GitBranch,
   Wallet,
   Search,
   Filter,
@@ -15,6 +14,20 @@ import {
   Calendar,
   Shield,
 } from "lucide-react";
+import { Navigation } from "@/components/layout/Navigation";
+
+type StatusType = "confirmed" | "pending" | "failed";
+
+interface MockIPData {
+  id: string;
+  name: string;
+  smiles: string;
+  ipAssetId: string;
+  registrationDate: string;
+  status: StatusType;
+  txHash: string;
+  formula: string;
+}
 
 const DashboardPage = () => {
   const [isWalletConnected, setIsWalletConnected] = useState(true);
@@ -22,7 +35,7 @@ const DashboardPage = () => {
   const [filterStatus, setFilterStatus] = useState("all");
 
   // Mock registered IPs
-  const registeredIPs = [
+  const registeredIPs: MockIPData[] = [
     {
       id: "1",
       name: "Benzophenone Derivative",
@@ -55,38 +68,7 @@ const DashboardPage = () => {
     },
   ];
 
-  const Navigation = () => (
-    <nav className="flex items-center justify-between p-6 border-b border-gray-800/50">
-      <div className="flex items-center space-x-2">
-        <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-          <GitBranch className="w-5 h-5 text-black" />
-        </div>
-        <span className="text-xl font-bold">GenIP</span>
-      </div>
-
-      <div className="hidden md:flex items-center space-x-8 text-sm">
-        <a href="/" className="hover:text-gray-300 transition-colors">
-          HOME
-        </a>
-        <a href="/register" className="hover:text-gray-300 transition-colors">
-          REGISTER IP
-        </a>
-        <a href="/verify" className="hover:text-gray-300 transition-colors">
-          VERIFY IP
-        </a>
-      </div>
-
-      <button
-        onClick={() => setIsWalletConnected(!isWalletConnected)}
-        className="flex items-center space-x-2 bg-gray-900/80 hover:bg-gray-800 px-4 py-2 rounded border border-gray-700/50 transition-colors"
-      >
-        <Wallet className="w-4 h-4" />
-        <span>{isWalletConnected ? "0x742d...6634" : "Connect Wallet"}</span>
-      </button>
-    </nav>
-  );
-
-  const StatusBadge = ({ status }: { status: string }) => {
+  const StatusBadge = ({ status }: { status: StatusType }) => {
     const colors = {
       confirmed: "bg-green-500/20 text-green-400 border-green-500/30",
       pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -95,9 +77,7 @@ const DashboardPage = () => {
 
     return (
       <span
-        className={`px-2 py-1 rounded border text-xs font-medium ${
-          colors[status as keyof typeof colors] || colors.pending
-        }`}
+        className={`px-2 py-1 rounded border text-xs font-medium ${colors[status]}`}
       >
         {status.toUpperCase()}
       </span>

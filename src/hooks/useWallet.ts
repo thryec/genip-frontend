@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+// src/hooks/useWallet.ts
+import { useState, useEffect } from "react";
 import {
   createPublicClient,
   createWalletClient,
@@ -8,29 +9,32 @@ import {
   type Address,
 } from "viem";
 import { WalletState } from "@/lib/types";
-import { CHAINS } from "@/lib/constants";
 
 // Story Protocol Testnet chain configuration
-const storyTestnet = {
+const storyTestnetConfig = {
   id: 1315,
   name: "Story Protocol Testnet",
   network: "story-testnet",
   nativeCurrency: {
     decimals: 18,
-    name: "ETH",
-    symbol: "ETH",
+    name: "IP",
+    symbol: "IP",
   },
   rpcUrls: {
-    default: { http: ["https://aeneid.storyrpc.io"] },
-    public: { http: ["https://aeneid.storyrpc.io"] },
+    default: {
+      http: ["https://aeneid.storyrpc.io/"],
+    },
+    public: {
+      http: ["https://aeneid.storyrpc.io/"],
+    },
   },
   blockExplorers: {
-    default: { name: "StoryScan", url: "https://aeneid.storyscan.xyz" },
+    default: {
+      name: "Story Explorer",
+      url: "https://aeneid.story.foundation/",
+    },
   },
-};
-
-// Wallet connection types
-type WalletType = "metamask" | "injected" | "walletconnect";
+} as const;
 
 declare global {
   interface Window {
@@ -48,173 +52,114 @@ export const useWallet = () => {
   });
 
   const [balance, setBalance] = useState<string>("0");
-  const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
-  const [isSwitching, setIsSwitching] = useState(false);
+  const [walletClient, setWalletClient] = useState<any>(null);
+  const [publicClient, setPublicClient] = useState<any>(null);
 
-  const publicClient = useRef(
-    createPublicClient({
-      chain: storyTestnet,
-      transport: http(),
-    })
-  );
+  // Initialize clients when wallet is connected
+  useEffect(() => {
+    if (walletState.isConnected && window.ethereum) {
+      const client = createWalletClient({
+        chain: storyTestnetConfig,
+        transport: custom(window.ethereum),
+      });
 
-  const walletClient = useRef<any>(null);
+      const pubClient = createPublicClient({
+        chain: storyTestnetConfig,
+        transport: http("https://aeneid.storyrpc.io/"),
+      });
+
+      setWalletClient(client);
+      setPublicClient(pubClient);
+    }
+  }, [walletState.isConnected]);
+
+  // Fetch balance when address or public client changes
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!publicClient || !walletState.address) return;
+
+      try {
+        const balance = await publicClient.getBalance({
+          address: walletState.address,
+        });
+        setBalance(formatEther(balance));
+      } catch (error) {
+        console.error("Failed to fetch balance:", error);
+        setBalance("0");
+      }
+    };
+
+    fetchBalance();
+  }, [publicClient, walletState.address]);
+
+  // Format address for display
+  const formatAddress = (address?: string, chars = 4): string => {
+    if (!address) return "";
+    return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
+  };
 
   // Check if wallet is available
-  const isWalletAvailable = useCallback((): boolean => {
+  const isWalletAvailable = (): boolean => {
     return (
       typeof window !== "undefined" && typeof window.ethereum !== "undefined"
     );
-  }, []);
+  };
 
-  // Format address for display
-  const formatAddress = useCallback((address?: string, chars = 4): string => {
-    if (!address) return "";
-    return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
-  }, []);
-
-  // Get accounts from wallet
-  const getAccounts = useCallback(async (): Promise<Address[]> => {
-    if (!isWalletAvailable()) return [];
-
-    try {
-      const accounts = await window.ethereum.request({
-        method: "eth_accounts",
-      });
-      return accounts as Address[];
-    } catch (error) {
-      console.error("Failed to get accounts:", error);
-      return [];
-    }
-  }, [isWalletAvailable]);
-
-  // Get current chain ID
-  const getCurrentChainId = useCallback(async (): Promise<number> => {
-    if (!isWalletAvailable()) return 0;
-
-    try {
-      const chainId = await window.ethereum.request({
-        method: "eth_chainId",
-      });
-      return parseInt(chainId, 16);
-    } catch (error) {
-      console.error("Failed to get chain ID:", error);
-      return 0;
-    }
-  }, [isWalletAvailable]);
-
-  // Fetch balance
-  const fetchBalance = useCallback(async (address: Address) => {
-    try {
-      const balance = await publicClient.current.getBalance({ address });
-      setBalance(formatEther(balance));
-    } catch (error) {
-      console.error("Failed to fetch balance:", error);
-      setBalance("0");
-    }
-  }, []);
-
-  // Update wallet state
-  const updateWalletState = useCallback(async () => {
-    if (!isWalletAvailable()) return;
-
-    try {
-      const accounts = await getAccounts();
-      const chainId = await getCurrentChainId();
-
-      if (accounts.length > 0) {
-        const address = accounts[0];
-        setWalletState((prev) => ({
-          ...prev,
-          isConnected: true,
-          address,
-          chainId,
-          error: undefined,
-        }));
-
-        setIsCorrectNetwork(chainId === storyTestnet.id);
-
-        // Create wallet client
-        walletClient.current = createWalletClient({
-          chain: storyTestnet,
-          transport: custom(window.ethereum),
-        });
-
-        // Fetch balance
-        await fetchBalance(address);
-      } else {
-        setWalletState((prev) => ({
-          ...prev,
-          isConnected: false,
-          address: undefined,
-          chainId: undefined,
-        }));
-        setIsCorrectNetwork(false);
-        setBalance("0");
-      }
-    } catch (error) {
-      console.error("Failed to update wallet state:", error);
+  // Connect wallet
+  const connect = async () => {
+    if (!isWalletAvailable()) {
       setWalletState((prev) => ({
         ...prev,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update wallet state",
+          "No wallet found. Please install MetaMask or another Web3 wallet.",
       }));
+      return;
     }
-  }, [isWalletAvailable, getAccounts, getCurrentChainId, fetchBalance]);
 
-  // Connect wallet
-  const connect = useCallback(
-    async (walletType: WalletType = "injected") => {
-      if (!isWalletAvailable()) {
-        setWalletState((prev) => ({
-          ...prev,
-          error:
-            "No wallet found. Please install MetaMask or another Web3 wallet.",
-        }));
-        return;
+    setWalletState((prev) => ({
+      ...prev,
+      isConnecting: true,
+      error: undefined,
+    }));
+
+    try {
+      // Request account access
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+
+      if (accounts.length === 0) {
+        throw new Error("No accounts found");
       }
 
+      // Get current chain ID
+      const chainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
+
+      setWalletState({
+        isConnected: true,
+        isConnecting: false,
+        address: accounts[0] as Address,
+        chainId: parseInt(chainId, 16),
+        error: undefined,
+      });
+
+      // Save connection preference
+      localStorage.setItem("wallet_connected", "true");
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
       setWalletState((prev) => ({
         ...prev,
-        isConnecting: true,
-        error: undefined,
+        error:
+          error instanceof Error ? error.message : "Failed to connect wallet",
+        isConnecting: false,
       }));
-
-      try {
-        // Request account access
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-
-        if (accounts.length === 0) {
-          throw new Error("No accounts found");
-        }
-
-        // Update state
-        await updateWalletState();
-
-        // Save connection preference
-        localStorage.setItem("wallet_connected", "true");
-        localStorage.setItem("wallet_type", walletType);
-      } catch (error) {
-        console.error("Failed to connect wallet:", error);
-        setWalletState((prev) => ({
-          ...prev,
-          error:
-            error instanceof Error ? error.message : "Failed to connect wallet",
-          isConnecting: false,
-        }));
-      } finally {
-        setWalletState((prev) => ({ ...prev, isConnecting: false }));
-      }
-    },
-    [isWalletAvailable, updateWalletState]
-  );
+    }
+  };
 
   // Disconnect wallet
-  const disconnect = useCallback(() => {
+  const disconnect = () => {
     setWalletState({
       isConnected: false,
       isConnecting: false,
@@ -224,44 +169,49 @@ export const useWallet = () => {
     });
 
     setBalance("0");
-    setIsCorrectNetwork(false);
-    walletClient.current = null;
+    setWalletClient(null);
+    setPublicClient(null);
 
     // Clear localStorage
     localStorage.removeItem("wallet_connected");
     localStorage.removeItem("wallet_type");
-  }, []);
+  };
 
   // Switch to Story Protocol network
-  const switchToStoryNetwork = useCallback(async () => {
+  const switchToStoryNetwork = async () => {
     if (!isWalletAvailable()) return;
 
-    setIsSwitching(true);
-
     try {
-      // Try to switch to the network
+      // Try to switch to Story Protocol testnet
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: `0x${storyTestnet.id.toString(16)}` }],
+        params: [{ chainId: "0x523" }], // 1315 in hex
       });
+
+      setWalletState((prev) => ({ ...prev, chainId: 1315 }));
     } catch (switchError: any) {
-      // If the network doesn't exist, add it
+      // Network doesn't exist, add it
       if (switchError.code === 4902) {
         try {
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: `0x${storyTestnet.id.toString(16)}`,
-                chainName: storyTestnet.name,
-                rpcUrls: storyTestnet.rpcUrls.default.http,
-                blockExplorerUrls: [storyTestnet.blockExplorers.default.url],
-                nativeCurrency: storyTestnet.nativeCurrency,
+                chainId: "0x523",
+                chainName: "Story Protocol Testnet",
+                rpcUrls: ["https://aeneid.storyrpc.io/"],
+                nativeCurrency: {
+                  name: "IP",
+                  symbol: "IP",
+                  decimals: 18,
+                },
+                blockExplorerUrls: ["https://aeneid.story.foundation/"],
               },
             ],
           });
+          setWalletState((prev) => ({ ...prev, chainId: 1315 }));
         } catch (addError) {
-          console.error("Failed to add network:", addError);
+          console.error("Failed to add Story Protocol network:", addError);
           setWalletState((prev) => ({
             ...prev,
             error: "Failed to add Story Protocol network",
@@ -274,72 +224,158 @@ export const useWallet = () => {
           error: "Failed to switch to Story Protocol network",
         }));
       }
-    } finally {
-      setIsSwitching(false);
-      // Update wallet state after network change
-      setTimeout(updateWalletState, 1000);
     }
-  }, [isWalletAvailable, updateWalletState]);
-
-  // Sign message
-  const signMessage = useCallback(
-    async (message: string): Promise<string> => {
-      if (!walletClient.current || !walletState.address) {
-        throw new Error("Wallet not connected");
-      }
-
-      try {
-        const signature = await walletClient.current.signMessage({
-          account: walletState.address,
-          message,
-        });
-        return signature;
-      } catch (error) {
-        console.error("Failed to sign message:", error);
-        throw error;
-      }
-    },
-    [walletState.address]
-  );
+  };
 
   // Send transaction
-  const sendTransaction = useCallback(
-    async (transaction: any) => {
-      if (!walletClient.current || !walletState.address) {
-        throw new Error("Wallet not connected");
-      }
+  const sendTransaction = async (
+    to: Address,
+    value: bigint,
+    data?: `0x${string}`
+  ) => {
+    if (!walletClient || !walletState.address) {
+      throw new Error("Wallet not connected");
+    }
 
-      try {
-        const hash = await walletClient.current.sendTransaction({
-          account: walletState.address,
-          ...transaction,
-        });
-        return hash;
-      } catch (error) {
-        console.error("Failed to send transaction:", error);
-        throw error;
-      }
-    },
-    [walletState.address]
-  );
+    try {
+      const hash = await walletClient.sendTransaction({
+        account: walletState.address,
+        to,
+        value,
+        data,
+        chain: storyTestnetConfig,
+      });
+      return hash;
+    } catch (error) {
+      console.error("Transaction failed:", error);
+      throw error;
+    }
+  };
 
-  // Setup event listeners
+  // Write to contract
+  const writeContract = async (contractConfig: any) => {
+    if (!walletClient || !walletState.address) {
+      throw new Error("Wallet not connected");
+    }
+
+    try {
+      const hash = await walletClient.writeContract({
+        account: walletState.address,
+        chain: storyTestnetConfig,
+        ...contractConfig,
+      });
+      return hash;
+    } catch (error) {
+      console.error("Contract write failed:", error);
+      throw error;
+    }
+  };
+
+  // Read from contract
+  const readContract = async (contractConfig: any) => {
+    if (!publicClient) {
+      throw new Error("Public client not initialized");
+    }
+
+    try {
+      const result = await publicClient.readContract(contractConfig);
+      return result;
+    } catch (error) {
+      console.error("Contract read failed:", error);
+      throw error;
+    }
+  };
+
+  // Wait for transaction receipt
+  const waitForTransaction = async (hash: `0x${string}`) => {
+    if (!publicClient) {
+      throw new Error("Public client not initialized");
+    }
+
+    try {
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+        timeout: 60_000, // 60 seconds
+      });
+      return receipt;
+    } catch (error) {
+      console.error("Failed to wait for transaction:", error);
+      throw error;
+    }
+  };
+
+  // Sign message
+  const signMessage = async (message: string): Promise<string> => {
+    if (!walletClient || !walletState.address) {
+      throw new Error("Wallet not connected");
+    }
+
+    try {
+      const signature = await walletClient.signMessage({
+        account: walletState.address,
+        message,
+      });
+      return signature;
+    } catch (error) {
+      console.error("Failed to sign message:", error);
+      throw error;
+    }
+  };
+
+  // Check for existing connection and setup event listeners on mount
   useEffect(() => {
     if (!isWalletAvailable()) return;
 
+    // Check if already connected
+    const checkConnection = async () => {
+      const wasConnected = localStorage.getItem("wallet_connected");
+      if (wasConnected === "true") {
+        try {
+          const accounts = await window.ethereum.request({
+            method: "eth_accounts",
+          });
+
+          if (accounts.length > 0) {
+            const chainId = await window.ethereum.request({
+              method: "eth_chainId",
+            });
+
+            setWalletState({
+              isConnected: true,
+              isConnecting: false,
+              address: accounts[0] as Address,
+              chainId: parseInt(chainId, 16),
+              error: undefined,
+            });
+          } else {
+            localStorage.removeItem("wallet_connected");
+          }
+        } catch (error) {
+          console.error("Failed to check connection:", error);
+          localStorage.removeItem("wallet_connected");
+        }
+      }
+    };
+
+    checkConnection();
+
+    // Event listeners
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
         disconnect();
       } else {
-        updateWalletState();
+        setWalletState((prev) => ({
+          ...prev,
+          address: accounts[0] as Address,
+        }));
       }
     };
 
     const handleChainChanged = (chainId: string) => {
-      const newChainId = parseInt(chainId, 16);
-      setWalletState((prev) => ({ ...prev, chainId: newChainId }));
-      setIsCorrectNetwork(newChainId === storyTestnet.id);
-      updateWalletState();
+      setWalletState((prev) => ({
+        ...prev,
+        chainId: parseInt(chainId, 16),
+      }));
     };
 
     const handleDisconnect = () => {
@@ -357,47 +393,49 @@ export const useWallet = () => {
       window.ethereum?.removeListener("chainChanged", handleChainChanged);
       window.ethereum?.removeListener("disconnect", handleDisconnect);
     };
-  }, [isWalletAvailable, disconnect, updateWalletState]);
-
-  // Auto-connect on mount if previously connected
-  useEffect(() => {
-    const autoConnect = async () => {
-      const wasConnected = localStorage.getItem("wallet_connected");
-      if (wasConnected === "true" && isWalletAvailable()) {
-        const accounts = await getAccounts();
-        if (accounts.length > 0) {
-          await updateWalletState();
-        } else {
-          localStorage.removeItem("wallet_connected");
-        }
-      }
-    };
-
-    autoConnect();
-  }, [isWalletAvailable, getAccounts, updateWalletState]);
+  }, []);
 
   return {
     // State
     ...walletState,
     balance,
-    isCorrectNetwork,
-    isSwitching,
 
-    // Utilities
+    // Computed properties
+    isCorrectNetwork: walletState.chainId === 1315,
+    isOnStoryNetwork: walletState.chainId === 1315,
     formatAddress: formatAddress(walletState.address),
     fullAddress: walletState.address,
     isWalletAvailable: isWalletAvailable(),
+
+    // Clients (for advanced usage)
+    walletClient,
+    publicClient,
 
     // Actions
     connect,
     disconnect,
     switchToStoryNetwork,
-    signMessage,
     sendTransaction,
+    writeContract,
+    readContract,
+    waitForTransaction,
+    signMessage,
 
-    // Clients (for advanced usage)
-    publicClient: publicClient.current,
-    walletClient: walletClient.current,
+    // Legacy aliases for compatibility
+    connectWallet: connect,
+    disconnectWallet: disconnect,
+    getBalance: async () => {
+      if (!publicClient || !walletState.address) return null;
+      try {
+        const balance = await publicClient.getBalance({
+          address: walletState.address,
+        });
+        return balance;
+      } catch (error) {
+        console.error("Failed to get balance:", error);
+        return null;
+      }
+    },
   };
 };
 
@@ -406,7 +444,7 @@ export const useWalletRequirements = () => {
   const { isConnected, isCorrectNetwork, switchToStoryNetwork, connect } =
     useWallet();
 
-  const checkRequirements = useCallback(async (): Promise<boolean> => {
+  const checkRequirements = async (): Promise<boolean> => {
     if (!isConnected) {
       await connect();
       return false; // Will need to re-check after connection
@@ -418,7 +456,7 @@ export const useWalletRequirements = () => {
     }
 
     return true;
-  }, [isConnected, isCorrectNetwork, switchToStoryNetwork, connect]);
+  };
 
   return {
     isReady: isConnected && isCorrectNetwork,

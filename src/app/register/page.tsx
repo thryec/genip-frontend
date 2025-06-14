@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   ChevronRight,
   Loader2,
   Atom,
   Shield,
-  GitBranch,
-  Wallet,
   ArrowLeft,
   CheckCircle,
   Copy,
   ExternalLink,
 } from "lucide-react";
+import { Navigation } from "@/components/layout/Navigation";
+import { RegistrationData } from "@/lib/types";
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1); // 1: Input, 2: Processing, 3: Success
@@ -20,8 +21,8 @@ const RegisterPage = () => {
   const [moleculePrompt, setMoleculePrompt] = useState("");
   const [generatedSMILES, setGeneratedSMILES] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registrationData, setRegistrationData] = useState(null);
+  const [registrationData, setRegistrationData] =
+    useState<RegistrationData | null>(null);
 
   const handleGenerateMolecule = async () => {
     if (!moleculePrompt.trim()) return;
@@ -40,53 +41,19 @@ const RegisterPage = () => {
       return;
     }
 
-    setIsRegistering(true);
     setStep(2);
 
     // Simulate registration process
     setTimeout(() => {
-      setRegistrationData((prevState: any) => ({
-        ...(prevState || {}),
+      setRegistrationData({
         ipAssetId: "0x1a2b3c4d5e6f...",
         storyTxHash: "0x9f8e7d6c5b4a...",
         zkProofHash: "0x5a4b3c2d1e0f...",
         timestamp: new Date().toISOString(),
-      }));
+      });
       setStep(3);
-      setIsRegistering(false);
     }, 4000);
   };
-
-  const Navigation = () => (
-    <nav className="flex items-center justify-between p-6 border-b border-gray-800/50">
-      <div className="flex items-center space-x-2">
-        <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-          <GitBranch className="w-5 h-5 text-black" />
-        </div>
-        <span className="text-xl font-bold">GenIP</span>
-      </div>
-
-      <div className="hidden md:flex items-center space-x-8 text-sm">
-        <a href="/" className="hover:text-gray-300 transition-colors">
-          HOME
-        </a>
-        <a href="/verify" className="hover:text-gray-300 transition-colors">
-          VERIFY IP
-        </a>
-        <a href="/dashboard" className="hover:text-gray-300 transition-colors">
-          DASHBOARD
-        </a>
-      </div>
-
-      <button
-        onClick={() => setIsWalletConnected(!isWalletConnected)}
-        className="flex items-center space-x-2 bg-gray-900/80 hover:bg-gray-800 px-4 py-2 rounded border border-gray-700/50 transition-colors"
-      >
-        <Wallet className="w-4 h-4" />
-        <span>{isWalletConnected ? "Connected" : "Connect Wallet"}</span>
-      </button>
-    </nav>
-  );
 
   if (step === 1) {
     return (
@@ -95,18 +62,18 @@ const RegisterPage = () => {
 
         <div className="container mx-auto px-6 py-12 max-w-4xl">
           <div className="mb-8">
-            <a
+            <Link
               href="/"
               className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors mb-6"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Home</span>
-            </a>
+            </Link>
 
             <h1 className="text-4xl font-bold mb-4">Register Molecular IP</h1>
             <p className="text-gray-400 text-lg">
-              Describe your molecule and we'll register it confidentially on
-              Story Protocol
+              Describe your molecule and we&apos;ll register it confidentially
+              on Story Protocol
             </p>
           </div>
 

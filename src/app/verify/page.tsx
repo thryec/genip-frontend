@@ -1,26 +1,28 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import {
   Search,
   Loader2,
   Atom,
   Shield,
-  GitBranch,
-  Wallet,
   ArrowLeft,
   CheckCircle,
   Copy,
   ExternalLink,
   AlertCircle,
 } from "lucide-react";
+import { Navigation } from "@/components/layout/Navigation";
+import { VerificationResult } from "@/lib/types";
 
 const VerifyPage = () => {
   const [moleculePrompt, setMoleculePrompt] = useState("");
   const [generatedSMILES, setGeneratedSMILES] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [verificationResult, setVerificationResult] =
+    useState<VerificationResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleGenerateMolecule = async () => {
@@ -64,47 +66,19 @@ const VerifyPage = () => {
     }, 3000);
   };
 
-  const Navigation = () => (
-    <nav className="flex items-center justify-between p-6 border-b border-gray-800/50">
-      <div className="flex items-center space-x-2">
-        <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-          <GitBranch className="w-5 h-5 text-black" />
-        </div>
-        <span className="text-xl font-bold">GenIP</span>
-      </div>
-
-      <div className="hidden md:flex items-center space-x-8 text-sm">
-        <a href="/" className="hover:text-gray-300 transition-colors">
-          HOME
-        </a>
-        <a href="/register" className="hover:text-gray-300 transition-colors">
-          REGISTER IP
-        </a>
-        <a href="/dashboard" className="hover:text-gray-300 transition-colors">
-          DASHBOARD
-        </a>
-      </div>
-
-      <button className="flex items-center space-x-2 bg-gray-900/80 hover:bg-gray-800 px-4 py-2 rounded border border-gray-700/50 transition-colors">
-        <Wallet className="w-4 h-4" />
-        <span>Optional for Verification</span>
-      </button>
-    </nav>
-  );
-
   return (
     <div className="bg-gray-950 text-white min-h-screen font-mono">
       <Navigation />
 
       <div className="container mx-auto px-6 py-12 max-w-4xl">
         <div className="mb-8">
-          <a
+          <Link
             href="/"
             className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Home</span>
-          </a>
+          </Link>
 
           <h1 className="text-4xl font-bold mb-4">Verify Molecular IP</h1>
           <p className="text-gray-400 text-lg">
@@ -257,9 +231,11 @@ const VerifyPage = () => {
                           Registration Date
                         </label>
                         <p className="text-white">
-                          {new Date(
-                            verificationResult.registrationDate
-                          ).toLocaleDateString()}
+                          {verificationResult.registrationDate
+                            ? new Date(
+                                verificationResult.registrationDate
+                              ).toLocaleDateString()
+                            : "N/A"}
                         </p>
                       </div>
 

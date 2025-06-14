@@ -40,6 +40,8 @@ export interface VerificationResult {
   storyTxHash?: string;
   zkProofValid: boolean;
   molecule?: MoleculeData;
+  blockNumber?: number;
+  gasUsed?: string;
 }
 
 export interface WalletState {
@@ -73,4 +75,14 @@ export interface RegistrationState {
   storyAsset?: StoryIPAsset;
   isProcessing: boolean;
   error?: string;
+}
+
+export interface RegistrationData {
+  ipAssetId: string;
+  storyTxHash: string;
+  zkProofHash: string;
+  timestamp: string;
+  blockNumber?: number;
+  gasUsed?: string;
+  owner?: string;
 }

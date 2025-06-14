@@ -1,4 +1,3 @@
-import React from "react";
 import Link from "next/link";
 import { Wallet, Loader2, AlertCircle, GitBranch } from "lucide-react";
 import { useWallet } from "@/hooks/useWallet";
@@ -99,13 +98,12 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({
 export const MobileNavigation: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  currentPage?: string;
-}> = ({ isOpen, onClose, currentPage }) => {
+}> = ({ isOpen, onClose }) => {
   const navLinks = [
-    { href: "/", label: "HOME", key: "home" },
-    { href: "/register", label: "REGISTER IP", key: "register" },
-    { href: "/verify", label: "VERIFY IP", key: "verify" },
-    { href: "/dashboard", label: "DASHBOARD", key: "dashboard" },
+    { href: "/", label: "HOME" },
+    { href: "/register", label: "REGISTER IP" },
+    { href: "/verify", label: "VERIFY IP" },
+    { href: "/dashboard", label: "DASHBOARD" },
   ];
 
   if (!isOpen) return null;
@@ -150,14 +148,10 @@ export const MobileNavigation: React.FC<{
         <div className="flex-1 py-6">
           {navLinks.map((link) => (
             <Link
-              key={link.key}
+              key={link.href}
               href={link.href}
               onClick={onClose}
-              className={`block px-6 py-4 text-lg hover:bg-gray-800/50 transition-colors ${
-                currentPage === link.key
-                  ? "text-white bg-gray-800/30"
-                  : "text-gray-400"
-              }`}
+              className="block px-6 py-4 text-lg text-gray-400 hover:bg-gray-800/50 transition-colors"
             >
               {link.label}
             </Link>
